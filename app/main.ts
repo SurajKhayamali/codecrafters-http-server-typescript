@@ -11,7 +11,7 @@ const extractHeaders = (request: string): { [key: string]: string } => {
       break;
     }
     const [key, value] = lines[i].split(": ");
-    headers[key] = value;
+    headers[key.toLowerCase()] = value;
   }
   return headers;
 };
@@ -40,6 +40,8 @@ const filesPattern = /^GET \/files\/(.+) HTTP\/1.1/;
 // Regex to match HTTP request in pattern GET /files/{filename} HTTP/1.1
 const filesPostPattern = /^POST \/files\/(.+) HTTP\/1.1/;
 
+const supportedEncodings = ["gzip"];
+
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     const requestString = data.toString();
@@ -50,14 +52,18 @@ const server = net.createServer((socket) => {
     if (requestString.startsWith("GET / HTTP/1.1")) {
       response = formHTTPResponse(200, "OK");
     } else if (echoPattern.test(requestString)) {
+      const acceptEncoding = headers["accept-encoding"];
       const echoMatch = echoPattern.exec(requestString) as RegExpExecArray;
       response = formHTTPResponse(200, "OK", {
         "Content-Type": "text/plain",
         "Content-Length": echoMatch[1].length.toString(),
+        ...(supportedEncodings.includes(acceptEncoding) && {
+          "Content-Encoding": acceptEncoding,
+        }),
       });
       response += echoMatch[1];
     } else if (requestString.startsWith("GET /user-agent HTTP/1.1")) {
-      const userAgent = headers["User-Agent"];
+      const userAgent = headers["user-agent"];
       response = formHTTPResponse(200, "OK", {
         "Content-Type": "text/plain",
         "Content-Length": userAgent.length.toString(),
