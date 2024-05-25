@@ -57,6 +57,15 @@ const getSupportedEncoding = (acceptEncoding: string): string | null => {
   return null;
 };
 
+const compressResponse = (content: string, encoding: string): string => {
+  if (encoding === "gzip") {
+    const zlib = require("zlib");
+    return zlib.gzipSync(content);
+  }
+
+  return content;
+};
+
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     const requestString = data.toString();
@@ -70,14 +79,15 @@ const server = net.createServer((socket) => {
       const acceptEncoding = headers["accept-encoding"];
       const supportedEncoding = getSupportedEncoding(acceptEncoding);
       const echoMatch = echoPattern.exec(requestString) as RegExpExecArray;
+      const content = compressResponse(echoMatch[1], supportedEncoding || "");
       response = formHTTPResponse(200, "OK", {
         "Content-Type": "text/plain",
-        "Content-Length": echoMatch[1].length.toString(),
+        "Content-Length": content.length.toString(),
         ...(supportedEncoding && {
           "Content-Encoding": supportedEncoding,
         }),
       });
-      response += echoMatch[1];
+      response += content;
     } else if (requestString.startsWith("GET /user-agent HTTP/1.1")) {
       const userAgent = headers["user-agent"];
       response = formHTTPResponse(200, "OK", {
