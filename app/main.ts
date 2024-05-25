@@ -42,6 +42,21 @@ const filesPostPattern = /^POST \/files\/(.+) HTTP\/1.1/;
 
 const supportedEncodings = ["gzip"];
 
+const getSupportedEncoding = (acceptEncoding: string): string | null => {
+  if (!acceptEncoding) {
+    return null;
+  }
+
+  const acceptEncodings = acceptEncoding.split(", ");
+
+  for (const encoding of acceptEncodings) {
+    if (supportedEncodings.includes(encoding)) {
+      return encoding;
+    }
+  }
+  return null;
+};
+
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     const requestString = data.toString();
@@ -53,12 +68,13 @@ const server = net.createServer((socket) => {
       response = formHTTPResponse(200, "OK");
     } else if (echoPattern.test(requestString)) {
       const acceptEncoding = headers["accept-encoding"];
+      const supportedEncoding = getSupportedEncoding(acceptEncoding);
       const echoMatch = echoPattern.exec(requestString) as RegExpExecArray;
       response = formHTTPResponse(200, "OK", {
         "Content-Type": "text/plain",
         "Content-Length": echoMatch[1].length.toString(),
-        ...(supportedEncodings.includes(acceptEncoding) && {
-          "Content-Encoding": acceptEncoding,
+        ...(supportedEncoding && {
+          "Content-Encoding": supportedEncoding,
         }),
       });
       response += echoMatch[1];
