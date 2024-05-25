@@ -47,6 +47,13 @@ const server = net.createServer((socket) => {
         "Content-Length": echoMatch[1].length.toString(),
       });
       response += echoMatch[1];
+    } else if (requestString.startsWith("GET /user-agent HTTP/1.1")) {
+      const userAgent = headers["User-Agent"];
+      response = formHTTPResponse(200, "OK", {
+        "Content-Type": "text/plain",
+        "Content-Length": userAgent.length.toString(),
+      });
+      response += userAgent;
     } else {
       response = formHTTPResponse(404, "Not Found");
     }
