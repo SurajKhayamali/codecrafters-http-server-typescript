@@ -87,7 +87,12 @@ const server = net.createServer((socket) => {
           "Content-Encoding": supportedEncoding,
         }),
       });
-      response += content;
+
+      console.log("Sending response:", response);
+      socket.write(response);
+      socket.write(content);
+      socket.end();
+      console.log("Sent response and closed connection");
     } else if (requestString.startsWith("GET /user-agent HTTP/1.1")) {
       const userAgent = headers["user-agent"];
       response = formHTTPResponse(200, "OK", {
