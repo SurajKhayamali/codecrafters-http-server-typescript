@@ -1,0 +1,1 @@
+call bun run app/main.ts %*
