@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import * as net from "net";
 import { join } from "path";
 import { argv } from "process";
@@ -34,10 +34,11 @@ const formHTTPResponse = (
 // Regex to match HTTP request in pattern GET /echo/{str} HTTP/1.1
 const echoPattern = /^GET \/echo\/(.+) HTTP\/1.1/;
 
+const dir = argv[argv.length - 1] || "./files";
 // Regex to match HTTP request in pattern GET /files/{filename} HTTP/1.1
 const filesPattern = /^GET \/files\/(.+) HTTP\/1.1/;
-const dir = argv[argv.length - 1] || "./files";
-console.log({ argv, dir });
+// Regex to match HTTP request in pattern GET /files/{filename} HTTP/1.1
+const filesPostPattern = /^POST \/files\/(.+) HTTP\/1.1/;
 
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
@@ -66,6 +67,7 @@ const server = net.createServer((socket) => {
       const fileMatch = filesPattern.exec(requestString) as RegExpExecArray;
       const filename = fileMatch[1];
       const filePath = join(dir, filename);
+
       if (existsSync(filePath)) {
         const content = readFileSync(join(dir, filename));
         response = formHTTPResponse(200, "OK", {
@@ -75,6 +77,19 @@ const server = net.createServer((socket) => {
         response += content;
       } else {
         response = formHTTPResponse(404, "Not Found");
+      }
+    } else if (filesPostPattern.test(requestString)) {
+      const fileMatch = filesPostPattern.exec(requestString) as RegExpExecArray;
+      const filename = fileMatch[1];
+      const filePath = join(dir, filename);
+
+      if (existsSync(filePath)) {
+        response = formHTTPResponse(409, "Conflict");
+      } else {
+        const content = requestString.split("\r\n\r\n")[1];
+        writeFileSync(filePath, content);
+        response = formHTTPResponse(201, "Created");
+        response += "File created";
       }
     } else {
       response = formHTTPResponse(404, "Not Found");
