@@ -1,4 +1,7 @@
+import { existsSync, readFileSync } from "fs";
 import * as net from "net";
+import { join } from "path";
+import { argv } from "process";
 
 const extractHeaders = (request: string): { [key: string]: string } => {
   const headers: { [key: string]: string } = {};
@@ -31,6 +34,11 @@ const formHTTPResponse = (
 // Regex to match HTTP request in pattern GET /echo/{str} HTTP/1.1
 const echoPattern = /^GET \/echo\/(.+) HTTP\/1.1/;
 
+// Regex to match HTTP request in pattern GET /files/{filename} HTTP/1.1
+const filesPattern = /^GET \/files\/(.+) HTTP\/1.1/;
+const dir = argv[argv.length - 1] || "./files";
+console.log({ argv, dir });
+
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     const requestString = data.toString();
@@ -54,6 +62,20 @@ const server = net.createServer((socket) => {
         "Content-Length": userAgent.length.toString(),
       });
       response += userAgent;
+    } else if (filesPattern.test(requestString)) {
+      const fileMatch = filesPattern.exec(requestString) as RegExpExecArray;
+      const filename = fileMatch[1];
+      const filePath = join(dir, filename);
+      if (existsSync(filePath)) {
+        const content = readFileSync(join(dir, filename));
+        response = formHTTPResponse(200, "OK", {
+          "Content-Type": "application/octet-stream",
+          "Content-Length": content.length.toString(),
+        });
+        response += content;
+      } else {
+        response = formHTTPResponse(404, "Not Found");
+      }
     } else {
       response = formHTTPResponse(404, "Not Found");
     }
